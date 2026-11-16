@@ -1,0 +1,12 @@
+import {chromium} from '/tmp/workbench-test-tools/node_modules/playwright/index.mjs';
+import assert from 'node:assert/strict';
+const browser=await chromium.launch({executablePath:process.env.CHROMIUM||'/snap/bin/chromium',headless:true,args:['--no-sandbox','--disable-dev-shm-usage']});
+const page=await browser.newPage({viewport:{width:1280,height:900}});const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
+await page.goto('http://127.0.0.1:4178');await page.waitForFunction(()=>window.__shotReady,{timeout:45000});
+console.log('LIVE BOARD',await page.locator('h1').innerText(),await page.locator('.bounty-row').count());
+assert.ok(await page.locator('.bounty-row').count());
+const agenda=await page.locator('.agenda').innerText();assert.ok(!agenda.includes('Entries closed'),'deadline agenda includes expired entries');
+await page.goto('http://127.0.0.1:4178/#/bounty/makefun-frontend-01');await page.waitForFunction(()=>window.__shotReady,{timeout:45000});assert.ok(await page.locator('.hero-pot').count());console.log('LIVE DETAIL',await page.locator('h1').innerText());
+await page.goto('http://127.0.0.1:4178/#/leaderboard/makefun-frontend-01');await page.waitForFunction(()=>window.__shotReady,{timeout:45000});assert.ok(await page.locator('.leader-row').count());console.log('LIVE LEADERBOARD',await page.locator('.section-title').innerText());
+await page.locator('.entrant a').first().click();await page.waitForFunction(()=>window.__shotReady,{timeout:45000});assert.ok(await page.locator('.solutions').count());console.log('LIVE PROFILE',await page.locator('h1').innerText());
+assert.deepEqual(errors,[]);await browser.close();

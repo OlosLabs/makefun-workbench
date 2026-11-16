@@ -1,0 +1,37 @@
+import {chromium} from '/tmp/workbench-test-tools/node_modules/playwright/index.mjs';
+import assert from 'node:assert/strict';
+const browser=await chromium.launch({executablePath:process.env.CHROMIUM||'/snap/bin/chromium',args:['--no-sandbox']});
+let passed=0;
+const check=(value,message)=>{assert.ok(value,message);passed++;console.log('PASS',message);};
+const context=await browser.newContext({viewport:{width:1280,height:900}});const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
+const fixture=Array.from({length:105},(_,i)=>({slug:'bounty-'+i,title:'Research '+i,category:'Code',summary:'A useful challenge',description:'## Safe heading\n- Useful list\n[unsafe](javascript:alert(1))\n<img src=x onerror="window.pwned=1">',rules:'## Rules\nBe original.',status:'open',opensAt:'2025-01-01',deadline:'2099-01-01',potUsd:'100.50',entryFeeUsd:i%2?'0.50':null,submissionCount:200+i,rewardsNow:[{place:1,amountUsd:'100.50'}]}));
+await page.route('https://make.fun/api/**',async r=>{const url=r.request().url();let body;if(url.includes('/leaderboard'))body={competition:{title:'Research'},rank_key:'score',columns:[{key:'score',title:'Latency ms',sorting:'asc'}],entries:[{rank:1,handle:'builder',title:'Fast',values:{score:12},display:{score:'12'}}],rest:Array.from({length:90},(_,i)=>({rank:i+2,handle:'builder',title:'Compact '+i,value:20+i,display:String(20+i)}))};else if(url.includes('/profiles/'))body={handle:'builder',bio:fixture[0].description,record:{competitions_entered:1},solutions:[{title:'Solution',competition:fixture[0]}]};else if(/competitions\/bounty-/.test(url))body=fixture[0];else body={items:fixture};await r.fulfill({json:body,headers:{ETag:'"fixture"'}});});
+const ready=()=>page.waitForFunction(()=>window.__shotReady);
+await page.goto('http://127.0.0.1:4178');await ready();
+check(await page.locator('.agenda-item').count()>0,'agenda includes future deadlines');
+check(await page.locator('.bounty-row').count()===8,'board paginates large lists');
+await page.getByRole('button',{name:'Next →',exact:true}).click();await ready();check(page.url().includes('page=2'),'pagination is URL-backed');
+await page.goBack();await ready();check(!page.url().includes('page=2'),'browser back restores board state');
+await page.locator('.bounty-row .check input').nth(0).check();await page.locator('.bounty-row .check input').nth(1).check();check(await page.locator('.compare-grid article').count()===2,'compare two bounties');
+await page.locator('.bounty-row .check input').nth(2).check();await page.locator('.bounty-row .check input').nth(3).click();check(await page.locator('.compare-grid article').count()===3,'comparison is capped at three');
+await page.getByRole('button',{name:'Save Research 0',exact:true}).click();check(await page.locator('#saved-count').innerText()==='1','shortlist saves locally');
+await page.locator('#theme').click();const theme=await page.locator('html').getAttribute('data-theme');await page.reload();await ready();check(await page.locator('html').getAttribute('data-theme')===theme,'theme persists across reload');
+await page.locator('select[name="fee"]').selectOption('free');await ready();check((await page.locator('.bounty-row .fee').allTextContents()).every(x=>x==='Free entry'),'fee filter selects free bounties');
+await page.locator('select[name="category"]').selectOption('Code');await ready();check(page.url().includes('category=Code'),'category filter is URL-backed');
+await page.locator('select[name="deadline"]').selectOption('open');await ready();check(page.url().includes('deadline=open'),'deadline filter is URL-backed');
+await page.locator('select[name="sort"]').selectOption('entries');await ready();check((await page.locator('.bounty-main h2').first().innerText()).includes('104'),'entry-count sorting uses API count');
+await page.goto('http://127.0.0.1:4178/#/');await ready();
+await page.getByRole('searchbox').fill('nonexistent');await page.getByRole('button',{name:'Search',exact:true}).click();await ready();check(await page.locator('.empty').count()===1,'search empty state');
+await page.goto('http://127.0.0.1:4178/#/bounty/bounty-0');await ready();check(await page.locator('.markdown img').count()===0,'raw HTML is inert');check(await page.locator('a[href^="javascript:"]').count()===0,'unsafe Markdown links removed');check(!await page.evaluate(()=>window.pwned),'XSS fixture did not execute');
+await page.locator('summary').filter({hasText:'Full competition rules'}).click();check(await page.locator('details[open]').count()===1,'rules expand accessibly');
+await page.goto('http://127.0.0.1:4178/#/leaderboard/bounty-0');await ready();check(await page.locator('.leader-row').count()===20,'leaderboard paginates entries and compact rest');check((await page.locator('.metric-note').innerText()).includes('Lower is better'),'metric direction follows metadata');
+await page.getByRole('button',{name:'Next →',exact:true}).click();check((await page.locator('.entrant p').first().innerText()).includes('Compact'),'compact rows appear on later pages');await page.locator('.entrant a').first().click();await ready();check(await page.locator('.solutions').count()===1,'entrant navigates to profile');
+for(const width of [360,390,768,1280]){await page.setViewportSize({width,height:844});for(const route of ['#/','#/bounty/bounty-0','#/leaderboard/bounty-0','#/profile/builder']){await page.goto('http://127.0.0.1:4178/'+route);await ready();check(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`${route} no overflow at ${width}px`);}}
+await page.goto('http://127.0.0.1:4178/#/bounty/%3Cscript%3E');await ready();check((await page.locator('h2').innerText()).includes('Page not found'),'invalid route rejected');
+check(errors.length===0,'no browser exceptions');
+await context.close();
+for(const [name,response]of [['null','null'],['malformed','{"items":[null,7,{}, {"slug":"valid","title":null,"skills":null}]}'],['503',503],['429',429],['network','network']]){const c=await browser.newContext();const p=await c.newPage();const err=[];p.on('pageerror',e=>err.push(e.message));await p.route('https://make.fun/api/**',r=>response==='network'?r.abort():typeof response==='number'?r.fulfill({status:response,headers:{'Retry-After':'1'},body:'unavailable'}):r.fulfill({contentType:'application/json',body:response}));await p.goto('http://127.0.0.1:4178');await p.waitForFunction(()=>window.__shotReady);check(err.length===0,`${name} response handled without exception`);if(name!=='malformed')check(await p.getByRole('button',{name:'Retry public data'}).count()===1,`${name} has retry action`);await c.close();}
+const recovery=await browser.newContext();const rp=await recovery.newPage();let fail=true,release;const gate=new Promise(r=>release=r);
+await rp.route('https://make.fun/api/**',async r=>{await gate;return fail?r.abort():r.fulfill({json:{items:fixture}});});
+await rp.goto('http://127.0.0.1:4178');await rp.locator('.loading').waitFor();check(await rp.evaluate(()=>window.__shotReady===false),'navigation exposes loading readiness false');release();await rp.waitForFunction(()=>window.__shotReady);fail=false;await rp.getByRole('button',{name:'Retry public data'}).click();await rp.waitForFunction(()=>window.__shotReady);check(await rp.locator('.bounty-row').count()===8,'retry recovers from network error');await recovery.close();
+await browser.close();console.log(`Browser assertions passed: ${passed}`);

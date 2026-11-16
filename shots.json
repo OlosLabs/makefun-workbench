@@ -1,0 +1,35 @@
+[
+  {
+    "file": "screenshots/1-board.jpg",
+    "route": "#/",
+    "viewport": {
+      "width": 1280,
+      "height": 900
+    },
+    "bytes": 110406,
+    "capturedAt": "2026-11-16T21:47:59.933Z",
+    "source": "Live make.fun public API; Chromium browser render; no response interception; unedited viewport screenshot"
+  },
+  {
+    "file": "screenshots/2-bounty.jpg",
+    "route": "#/bounty/makefun-frontend-01",
+    "viewport": {
+      "width": 1280,
+      "height": 900
+    },
+    "bytes": 143769,
+    "capturedAt": "2026-11-16T21:48:00.484Z",
+    "source": "Live make.fun public API; Chromium browser render; no response interception; unedited viewport screenshot"
+  },
+  {
+    "file": "screenshots/3-leaderboard.jpg",
+    "route": "#/leaderboard/makefun-frontend-01",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "bytes": 46693,
+    "capturedAt": "2026-11-16T21:48:00.979Z",
+    "source": "Live make.fun public API; Chromium browser render; no response interception; unedited viewport screenshot"
+  }
+]

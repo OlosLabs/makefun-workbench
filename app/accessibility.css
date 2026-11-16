@@ -1,0 +1,5 @@
+
+/* Links remain identifiable without depending on color alone. */
+.crumb a,.profile-links a,.solution>a{ text-decoration:underline;text-underline-offset:3px }
+.reward-table:focus-visible{outline:3px solid var(--accent);outline-offset:4px}
+:root[data-theme=dark] .primary{color:#20231f}
