@@ -1,0 +1,12 @@
+node_modules/
+out/
+output/
+coverage/
+test-results/
+playwright-report/
+.env
+.env.*
+*.key
+*keypair*
+*.log
+.DS_Store
