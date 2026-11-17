@@ -22,12 +22,15 @@ function inline(value){
  }out.append(value.slice(start));return out;
 }
 export function markdown(value){
- const root=el('div',{class:'markdown'});let list=null,code=null;
- for(const line of text(value).slice(0,150000).split('\n')){
+ const root=el('div',{class:'markdown'});let list=null,code=null,table=null;
+ const lines=text(value).slice(0,150000).split('\n');
+ for(let i=0;i<lines.length;i++){const line=lines[i];
+  if(!code&&line.includes('|')&&/^\s*\|?\s*:?-{3,}/.test(lines[i+1]||'')){table=el('table');const cells=s=>s.trim().replace(/^\||\|$/g,'').split('|').map(x=>x.trim());table.append(el('thead',{},el('tr',{},...cells(line).map(x=>el('th',{scope:'col'},inline(x))))));const body=el('tbody');table.append(body);i++;while(i+1<lines.length&&lines[i+1].includes('|'))body.append(el('tr',{},...cells(lines[++i]).map(x=>el('td',{},inline(x)))));root.append(el('div',{class:'reward-table',tabindex:'0','aria-label':'Markdown table'},table));list=null;continue;}
+
   if(line.startsWith('```')){if(code)code=null;else{code=el('code');root.append(el('pre',{},code));}continue;}
   if(code){code.append(line+'\n');continue;}
   const heading=line.match(/^(#{1,6})\s+(.+)/), item=line.match(/^\s*(?:[-*]|\d+\.)\s+(.+)/);
-  if(item){if(!list){list=el('ul');root.append(list);}list.append(el('li',{},inline(item[1])));continue;}
+  if(item){ if(!list||list.tagName!==( /^\s*\d+\./.test(line)?'OL':'UL')){list=el(/^\s*\d+\./.test(line)?'ol':'ul');root.append(list);}list.append(el('li',{},inline(item[1])));continue;}
   list=null;
   if(heading)root.append(el('h'+Math.min(4,heading[1].length+1),{},inline(heading[2])));
   else if(line.trim())root.append(el('p',{},inline(line)));

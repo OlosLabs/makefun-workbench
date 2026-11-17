@@ -1,5 +1,13 @@
 # Recording provenance
 
+## Redesign handoff v2
+
+This fresh session began from clean dev commit 3f27daf after the parent reported that the preceding v2 session ended before redesign edits. Its opening message is an orchestration handoff, not a user-typed request. Recorder PID 704573 was observed alive before edits. All redesign source, tests, screenshots and documentation writes were performed through this session's witnessed tool calls; no coding work was delegated. The recorder remains externally managed and is not sealed by this session. No session records were edited, deleted, retried or compressed.
+
+The runtime declares Hermes Agent, provider custom, model gpt-6.1-sol; no explicit reasoning-effort override is visible. The handoff runs in the existing parent-managed harness; earlier observed version information below belongs to the earlier build and is not a new version measurement. Only terminal and file tools were used for this redesign. No MCP servers or skills were invoked. Public Primer guidance and public make.fun GET data informed the work; no competitor source was copied. Existing vendor source remains unchanged. Git authorship is HakimIqbal <moeh.iqbal.hakim@gmail.com>. The parent must obtain final recording identifiers, usage and sealing receipts from the actual recorder; this document does not claim a seal or invent cost totals.
+
+## Earlier build provenance
+
 This work began in a fresh Hermes CLI session launched by parent orchestration after the person's approval. The approval supplied to this session, verbatim, was: “gass kan sesuai rekomendasimu ya”. This session's opening task is an orchestration handoff, not a user-typed top-level prompt. The parent retains responsibility for representing the original top-level request and its initiating context accurately in the final run record.
 
 The authorized scope is building and verifying the original make.fun Workbench entry, authoring its files, committing to dev, merging to main and pushing both branches. Repository creation and remote configuration are authorized and handled by the parent. Fee payment, submission, login and registration are not authorized. The parent reported that recording began before this session and the empty repository. This session never stops or seals the recorder, edits session records, retries a model response, undoes a session or invokes compression.

@@ -1,5 +1,6 @@
-
-/* Links remain identifiable without depending on color alone. */
-.crumb a,.profile-links a,.solution>a{ text-decoration:underline;text-underline-offset:3px }
-.reward-table:focus-visible{outline:3px solid var(--accent);outline-offset:4px}
-:root[data-theme=dark] .primary{color:#20231f}
+/* Every interactive control has a visible keyboard focus indicator. */
+:focus-visible{outline:2px solid var(--link);outline-offset:3px}
+.skip{position:absolute;top:-60px;left:16px;padding:10px;background:var(--bg);z-index:10;border:1px solid var(--border);border-radius:6px}.skip:focus{top:10px}
+.crumb a,.profile-links a,.solution>a,footer a,.markdown a{text-decoration:underline;text-underline-offset:3px}
+.primary{color:#fff}html[data-theme=dark] .primary{color:#0d1117}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;animation:none!important;transition:none!important}}

@@ -15,6 +15,7 @@ export function remaining(value, now = Date.now()) {
   return h >= 24 ? `${Math.floor(h/24)}d ${h%24}h left` : `${h}h left`;
 }
 export function safeURL(value) {
+  if(!text(value).trim())return null;
   try { const u = new URL(text(value),'https://make.fun'); return ['https:','http:','mailto:'].includes(u.protocol) && !u.username && !u.password ? u.href : null; } catch { return null; }
 }
 export function route(hash) {
