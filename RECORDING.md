@@ -8,7 +8,7 @@ The runtime declares Hermes Agent, provider custom, model gpt-6.1-sol; no explic
 
 ## Earlier build provenance
 
-This work began in a fresh Hermes CLI session launched by parent orchestration after the person's approval. The approval supplied to this session, verbatim, was: “gass kan sesuai rekomendasimu ya”. This session's opening task is an orchestration handoff, not a user-typed top-level prompt. The parent retains responsibility for representing the original top-level request and its initiating context accurately in the final run record.
+This work began in a fresh Hermes CLI session launched by parent orchestration after the person's approval. The approval supplied to this session, verbatim, was: "gass kan sesuai rekomendasimu ya". This session's opening task is an orchestration handoff, not a user-typed top-level prompt. The parent retains responsibility for representing the original top-level request and its initiating context accurately in the final run record.
 
 The authorized scope is building and verifying the original make.fun Workbench entry, authoring its files, committing to dev, merging to main and pushing both branches. Repository creation and remote configuration are authorized and handled by the parent. Fee payment, submission, login and registration are not authorized. The parent reported that recording began before this session and the empty repository. This session never stops or seals the recorder, edits session records, retries a model response, undoes a session or invokes compression.
 
@@ -21,3 +21,7 @@ MCP servers actually used: none. Browser automation uses Playwright's local Node
 The three screenshots are genuine live Chromium renders, with routes, dimensions, capture times and byte sizes recorded in shots.json. Unit and fixture tests are separate from screenshot contexts. The only imported entry source is the explicitly allowed, byte-unchanged vendor/makefun-frontend.ts. Application source and main.ts are authored by this session's recorded write/edit calls. Session usage totals, recording identifiers and final sealing status are intentionally not invented here; the parent obtains them from the actual harness and recorder.
 
 Before any future submission, the parent should inspect the exact public commit, verify both branch pushes, finish the existing recorder under its original environment, verify the seal, and prepare makefun-run.json with the actual top-level initiating request and handoff provenance, observed harness/model/provider/effort, withheld reasons and the empty MCP list. This is a nonexecuting preparation note. No fee or entry is sent by this session.
+
+## This recovery session
+
+Current recovery session: custom ganrouter.com oracle-lyraaveline-hermes. Earlier custom gpt-6.1-sol sessions preserved including failed 20261117_012304_037cf2. Opening prompts are orchestration handoffs; user approvals supplied externally. No MCP used. Parent handles seal/run record/payment/submission externally with separate explicit authorization. Recorder PID 803655 remains active. Recording IDs: original 01a1e643-1f78-76f1-84b9-910ccdac4100, v2 01a1e677-d2c4-71f6-bfcd-1598e62cda74, current 01a1e719-b008-764e-bbfa-5c4f7265e9d0 (active not sealed). No transcript edit/retry/undo/compression.

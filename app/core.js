@@ -13,12 +13,58 @@ export function exactMoney(value) {
   return money(value);
 }
 export const date = value => Number.isFinite(Date.parse(value)) ? new Intl.DateTimeFormat('en-GB',{month:'short',day:'2-digit',hour:'2-digit',minute:'2-digit',timeZone:'UTC'}).format(new Date(value)) + ' UTC' : 'Not announced';
+export const numeric = value => { const n = Number(value); return Number.isFinite(n) ? n : null; };
+export const count = value => { const n = Number(value); return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0; };
 export function remaining(value, now = Date.now()) {
   const ms = Date.parse(value)-now;
   if (!Number.isFinite(ms)) return 'No deadline';
   if (ms <= 0) return 'Entries closed';
   const h = Math.ceil(ms/3600000);
   return h >= 24 ? `${Math.floor(h/24)}d ${h%24}h left` : `${h}h left`;
+}
+export function relativeAge(at, now = Date.now(), max = 'about a day') {
+  const a = Number(at), n = Number(now);
+  if (!Number.isFinite(a) || !Number.isFinite(n)) return '';
+  const sec = Math.max(0, Math.floor((n - a) / 1000));
+  if (sec < 5) return 'just now';
+  if (sec < 60) return `${sec}s ago`;
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min}m ago`;
+  const hour = Math.floor(min / 60);
+  if (hour < 24) return `${hour}h ago`;
+  const day = Math.floor(hour / 24);
+  if (day < 7) return `${day}d ago`;
+  return max;
+}
+export function relativeCooldown(ms, now = Date.now()) {
+  const target = Number(ms), n = Number(now);
+  if (!Number.isFinite(target)) return 'a moment';
+  const sec = Math.max(0, Math.ceil((target - n) / 1000));
+  if (sec < 1) return 'a moment';
+  if (sec < 60) return `${sec} second${sec === 1 ? '' : 's'}`;
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min}m left`;
+  const hour = Math.floor(min / 60);
+  const left = min % 60;
+  if (hour < 24) return `${hour}h${left ? ' ' + left + 'm' : ''} left`;
+  const day = Math.floor(hour / 24);
+  return `${day < 400 ? day + 'd' : '400d+'} left`;
+}
+export const clockOffset = (serverAt, localAt) => {
+  const s = Number(serverAt), l = Number(localAt);
+  return Number.isFinite(s) && Number.isFinite(l) ? s - l : 0;
+};
+// A Retry-After date is measured against the response's own Date header, never the client clock.
+export function retryAfterMs(retry, responseDate, fallback = 30000) {
+  const raw = text(retry).trim();
+  if (!raw) return fallback;
+  let delay = null;
+  if (/^\d+(?:\.\d+)?$/.test(raw)) delay = Math.max(1000, Number(raw) * 1000);
+  else {
+    const target = Date.parse(raw), base = Date.parse(responseDate);
+    if (Number.isFinite(target) && Number.isFinite(base)) delay = Math.max(1000, target - base);
+  }
+  return Number.isFinite(delay) ? delay : fallback;
 }
 export function safeURL(value) {
   if(!text(value).trim())return null;
@@ -40,6 +86,13 @@ export function metric(row,column) {
   if (value == null) return '—';
   if (text(column?.source).endsWith('_micro') && /win_rate|interval/.test(text(column?.source))) return (Number(value)/10000).toFixed(2)+'%';
   return text(row?.display?.[column?.key]) || text(value) || '—';
+}
+export function columnList(data) {
+  return array(data?.columns).filter(c => !c.hidden && segment(c?.key));
+}
+export function primaryColumn(data) {
+  const columns = columnList(data);
+  return columns.find(c => c.key === data?.rank_key) || columns[0] || null;
 }
 export function potOf(b) { const n = Number(b?.potUsd ?? b?.rewardAmount); return Number.isFinite(n) ? n : null; }
 export function entryFeeOf(b) { const n = Number(b?.entryFeeUsd ?? 0); return Number.isFinite(n) ? n : 0; }

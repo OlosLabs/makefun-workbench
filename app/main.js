@@ -1,8 +1,9 @@
-import {api} from './api.js';
+import {api} from './api.js?v=clean-5';
 import {text,array,segment,accepting,money,date,remaining,route,leaderboardRows,metric,safeURL,potOf,entryFeeOf,groupRewards,topFive,mergeBoard,filterBoard,slicePage} from './core.js';
 import {el,link,button,markdown} from './dom.js';
 
 const content=document.querySelector('#content');
+const bounded=(promise,ms=9000)=>new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(new Error('The public API did not respond in time. Retry this view.')),ms);promise.then(value=>{clearTimeout(timer);resolve(value);},error=>{clearTimeout(timer);reject(error);});});
 let generation=0,board=[],cursor=null,compare=new Set(),currentRoute;
 const readLocal=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key))??fallback;}catch{return fallback;}};
 let saved=new Set(Array.isArray(readLocal('workbench-saved',[]))?readLocal('workbench-saved',[]).filter(segment):[]);
@@ -152,12 +153,13 @@ function detail(b,standings,liveTop){
  if(tab==='rules')description.append(el('h2',{},'Competition rules'),text(b.rules)?markdown(b.rules):el('p',{},'The API provides these resolution criteria.'),el('ol',{},...(Array.isArray(b.resolution?.criteria)?b.resolution.criteria:[]).map(x=>el('li',{},markdown(x)))),...['source','verifier','announce','tieBreak'].filter(k=>text(b.resolution?.[k])).map(k=>el('section',{},el('h3',{},({source:'Source',verifier:'Verification',announce:'Announcement',tieBreak:'Tie break'})[k]),markdown(b.resolution[k]))));
  if(tab==='rewards'){const table=rewardTable({...b},{});description.append(el('h2',{},'Projected reward allocation'),el('p',{},'Current allocations can change before final resolution. These amounts are not paid prizes.'),table,el('p',{},'Base rewards plus the current fee share, exactly as returned by make.fun.'));}
  if(tab==='entries'){const rows=leaderboardRows(standings);description.append(el('h2',{},'Public entries'),el('p',{class:'muted'},`${rows.length} returned public rows. Previews appear only when supplied by the API.`),rows.length?pageList(rows,r=>el('article',{class:'solution'},segment(r.handle)?link('@'+r.handle,'#/profile/'+r.handle):text(r.handle),el('h3',{},text(r.title)),el('p',{class:'muted'},[text(r.status),r.received_at?date(r.received_at):'',r.source_withheld?'Source withheld':''].filter(Boolean).join(' · ')),artifacts(r.judge?.artifact))):empty('No public entries returned','Public entry metadata may not be available yet.'));}
- if(tab==='standings')description.append(...leaderboard(standings,b).slice(-1));
+ if(tab==='standings'&&!b._sectionError)description.append(...leaderboard(standings||{},b).slice(-1));
+ if(b._sectionError)description.replaceChildren(el('h2',{},'This section is temporarily unavailable'),el('p',{role:'status'},b._sectionError),button('Retry this section',()=>navigate(true)),el('p',{},'The bounty details and other tabs remain available.'));
  const facts=el('aside',{class:'facts'},label('The opportunity'),el('dl',{},...Object.entries({'Live pot':money(potOf(b)),'Base rewards':money(b.rewardAmount),'Entry fees added':money(b.entryFeesUsd??0),'Entry fee':entryFeeOf(b)>0?money(entryFeeOf(b))+' per account':'Free','Entries':String(Number(b.submissionCount)||0),'Opens':date(b.opensAt||b.publishedAt),'Deadline':date(b.deadline),'Time left':remaining(b.deadline),'API status':text(b.status)||'Unknown'}).flatMap(([k,v])=>[el('dt',{},k),el('dd',{},v)])),link('Official bounty ↗','https://make.fun/bounty/'+b.slug,{class:'official'}));
  facts.prepend(el('h2',{},'About'),el('p',{},text(b.sponsor?.name)||'Sponsor not provided'),el('div',{class:'tags'},...(Array.isArray(b.skills)?b.skills:[]).map(s=>el('span',{class:'tag'},text(s)))));
  facts.append(el('h3',{},'Requirements'),el('p',{class:'muted'},text(b.prerequisites?.label)||'Not provided'),el('p',{class:'muted'},text(b.prerequisites?.summary)),el('h3',{},'Public escrow'),el('p',{class:'muted'},text(b.escrowLifecycle?.state)||'Not provided'),el('p',{class:'muted'},b.escrowLock?`${money(b.escrowLock.amount_usd)} locked · ${text(b.escrowLock.cluster)}`:''),safeURL(b.escrowLock?.explorer?.escrow)?link('Inspect escrow ↗',safeURL(b.escrowLock.explorer.escrow),{rel:'noopener noreferrer'}):null);
  const overview=tab==='overview'?el('div',{class:'overview-grid'},el('div',{},moneyFacts(b),rewardTable(b,{compact:true})),topFivePanel(liveTop,b)):null;
- return [crumb([text(b.category),text(b.title)]),syncNote(),el('div',{class:'detail-grid'},el('div',{},summary,overview,tabs,description),tab==='rewards'?null:el('div',{class:'detail-aside'},facts))];
+ return [crumb([text(b.category),text(b.title)]),syncNote(),el('div',{class:'detail-grid'},el('div',{},summary,tabs,overview,description),tab==='rewards'?null:el('div',{class:'detail-aside'},facts))];
 }
 function leaderboard(d,b=activeBounty){
  d=d||{};
@@ -178,24 +180,31 @@ function profile(p){
  return [crumb(['Builders','@'+text(p.handle)]),el('div',{class:'profile-identity'},publicImage(p.avatar||p.image,'Avatar for @'+text(p.handle),'avatar'),el('div',{},label('@'+text(p.handle)),el('h1',{},text(p.display_name)||'@'+text(p.handle)),el('p',{class:'muted'},'Joined '+date(p.joined_at)))),markdown(p.bio||'No public bio provided.'),el('div',{class:'profile-links'},links),el('div',{class:'overview'},stat('Bounties entered',text(record.competitions_entered)||'—'),stat('Wins',text(record.competitions_won)||'—'),stat('Placements',text(record.competitions_placed)||'—'),stat('Prizes paid',money(record.prize_usd))),syncNote(),el('section',{class:'solutions'},el('div',{class:'section-title'},el('h2',{},'Public work'),el('span',{},`${solutions.length} loaded solutions`)),solutions.length?pageList(solutions,s=>el('article',{class:'solution'},label(s.competition?.category||'Bounty'),el('h3',{},text(s.title)||'Untitled solution'),bountyLink(s.competition),el('div',{class:'row-bottom'},el('span',{},date(s.entered_at)),el('span',{},s.placement?'Place '+s.placement:'No final place'),el('strong',{},s.score?text(s.score.column?.title)+': '+metric({values:{[s.score.column?.key]:s.score.value},display:{[s.score.column?.key]:s.score.display}},s.score.column):'Score not public')),artifacts(s.artifact))):empty('No public work yet','This builder has no public solutions in this response.'))];
 }
 async function navigate(force=false){
- const token=++generation;window.__shotReady=false;currentRoute=route(location.hash);document.title='make.fun Workbench';
+ const token=++generation;
+ const requestedHash=location.hash||'#/';
+ const previousHash=window.__renderedHash||'#/';
+ const previousNodes=[...content.childNodes];
+ window.__shotReady=false;currentRoute=route(location.hash);document.title='make.fun Workbench';
  boardURL=boardHref('');
  document.querySelector('#board-nav').setAttribute('aria-current',currentRoute.kind==='board'?'page':'false');
  if(currentRoute.kind==='invalid'){content.replaceChildren(empty('Page not found','That route is not a valid public workbench address.'),link('Back to board','#/'));window.__renderedHash=location.hash;window.__shotReady=true;return;}
  content.setAttribute('aria-busy','true');if(currentRoute.kind==='board'||!content.querySelector('.master-detail'))content.replaceChildren(el('div',{class:'loading',role:'status'},label('PUBLIC DATA'),el('h1',{},'Setting out the workbench…'),el('p',{},'Fetching the latest from make.fun.')));
  try{
   const r=currentRoute;let data;
-  if(r.kind==='board'){const result=await api.getWithMeta('/competitions?status=open&activity=times&limit=50',{force});if(token!==generation)return;board=array(result.data.items);cursor=text(result.data.next_cursor)||null;renderBoard();}
+  if(r.kind==='board'){const result=await bounded(api.getWithMeta('/competitions?status=open&activity=times&limit=50',{force}));if(token!==generation)return;board=array(result.data.items);cursor=text(result.data.next_cursor)||null;renderBoard();}
   else{
    const path=r.kind==='profile'?'/profiles/'+r.id:r.kind==='leaderboard'?'/competitions/'+r.id+'/leaderboard?rows=first&ties=runs'+(['overall','performance','cost','efficiency'].includes(r.params.get('view'))?'&view='+r.params.get('view'):''):'/competitions/'+r.id+'?submissions=summary';
-   const [result,list]=await Promise.all([api.getWithMeta(path,{force}),board.length?Promise.resolve(null):api.getWithMeta('/competitions?status=open&activity=times&limit=50',{force}).catch(()=>null)]);
+   const [result,list]=await Promise.all([bounded(api.getWithMeta(path,{force})),board.length?Promise.resolve(null):bounded(api.getWithMeta('/competitions?status=open&activity=times&limit=50',{force}),2500).catch(()=>null)]);
    data=result.data;if(token!==generation)return;
    if(list)board=array(list.data.items);
    let standings=null,bounty=null,liveTop=null;
-   if(r.kind==='leaderboard'){bounty=await api.get('/competitions/'+r.id+'?submissions=summary',{force}).catch(()=>null);activeBounty=bounty;}
+   if(r.kind==='leaderboard'){bounty=await bounded(api.get('/competitions/'+r.id+'?submissions=summary',{force}),2500).catch(()=>null);activeBounty=bounty;}
    if(r.kind==='bounty'){
-    if(r.params.get('tab')==='overview'||!r.params.get('tab'))liveTop=await api.get('/competitions/'+r.id+'/leaderboard?rows=first&ties=runs&limit=5',{force}).catch(()=>null);
-    if(['entries','standings'].includes(r.params.get('tab')))standings=await api.get('/competitions/'+r.id+'/leaderboard?rows=first&ties=runs',{force});
+    if(r.params.get('tab')==='overview'||!r.params.get('tab'))liveTop=await bounded(api.get('/competitions/'+r.id+'/leaderboard?rows=first&ties=runs&limit=5',{force}),2500).catch(()=>null);
+    if(['entries','standings'].includes(r.params.get('tab'))){
+     try{standings=await bounded(api.get('/competitions/'+r.id+'/leaderboard?rows=first&ties=runs',{force}),4000);}
+     catch(error){standings=null;data={...data,_sectionError:error.message||'Standings are temporarily unavailable.'};}
+    }
    }
    if(token!==generation)return;
    if(r.kind==='bounty'&&!segment(data.slug))throw new Error('The bounty response is missing its public identifier.');
@@ -206,9 +215,25 @@ async function navigate(force=false){
    if(focusLabel)[...content.querySelectorAll('.tabs a')].find(a=>a.textContent===focusLabel)?.focus();
    document.title=(text(data.title)||text(data.competition?.title)||text(data.handle))+' · Workbench';
   }
- }catch(error){if(token!==generation)return;content.replaceChildren(crumb(),empty('The desk is temporarily offline',error.message||'The public API could not be reached.'),button('Retry public data',()=>navigate(true),{class:'primary'}));}
+ }catch(error){
+  if(token!==generation)return;
+  window.__lastViewError={message:error.message,stack:error.stack,route:requestedHash};
+  const renderingError=error instanceof TypeError;
+  const notice=empty(renderingError?'This view could not be rendered':'The public data is temporarily unavailable',error.message||'The public API could not be reached.');
+  notice.setAttribute('role','status');
+  notice.append(button('Retry public data',()=>navigate(true),{class:'primary'}));
+  const sameView=previousHash===requestedHash&&previousNodes.some(node=>node?.nodeType===1&&!node.classList.contains('loading')&&!node.classList.contains('empty'));
+  if(sameView){content.replaceChildren(...previousNodes.filter(node=>!node.classList?.contains('request-error')));notice.classList.add('request-error');notice.append(el('p',{},'Showing the previously loaded view. It may be out of date.'));content.prepend(notice);}
+  else{content.replaceChildren(crumb(),notice);if(board.length){notice.append(el('p',{},'Previously loaded bounty links remain available.'));content.append(el('nav',{'aria-label':'Available bounties'},...board.map(b=>el('p',{},bountyLink(b)))));}}
+ }
  finally{if(token===generation){content.removeAttribute('aria-busy');window.__renderedHash=location.hash;window.__shotReady=true;}}
 }
+document.addEventListener('click',event=>{
+ const anchor=event.target.closest('a[href]');
+ if(!anchor||event.defaultPrevented||event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;
+ const href=anchor.getAttribute('href');
+ if(href?.startsWith('#/')&&href===(location.hash||'#/')){event.preventDefault();navigate(true);}
+});
 window.addEventListener('hashchange',()=>{navigate();});
 window.addEventListener('online',()=>navigate(true));
 navigate();
