@@ -6,6 +6,12 @@ export function accepting(b, now = Date.now()) {
   return b?.status === 'open' && Number.isFinite(end) && end > now && (!Number.isFinite(start) || start <= now);
 }
 export const money = value => value == null || value === '' || !Number.isFinite(Number(value)) ? '—' : new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:2}).format(Number(value));
+export function exactMoney(value) {
+  if (value == null || value === '') return '—';
+  const raw = text(value).trim();
+  if (/^-?\d+(?:\.\d+)?$/.test(raw)) return money(Number(raw));
+  return money(value);
+}
 export const date = value => Number.isFinite(Date.parse(value)) ? new Intl.DateTimeFormat('en-GB',{month:'short',day:'2-digit',hour:'2-digit',minute:'2-digit',timeZone:'UTC'}).format(new Date(value)) + ' UTC' : 'Not announced';
 export function remaining(value, now = Date.now()) {
   const ms = Date.parse(value)-now;
@@ -32,6 +38,81 @@ export function leaderboardRows(data) {
 export function metric(row,column) {
   const value = row?.values?.[column?.key];
   if (value == null) return '—';
-  if (text(column?.source).endsWith('_micro') && /win_rate|interval/.test(text(column?.source))) return `${(Number(value)/10000).toFixed(2)}%`;
+  if (text(column?.source).endsWith('_micro') && /win_rate|interval/.test(text(column?.source))) return (Number(value)/10000).toFixed(2)+'%';
   return text(row?.display?.[column?.key]) || text(value) || '—';
 }
+export function potOf(b) { const n = Number(b?.potUsd ?? b?.rewardAmount); return Number.isFinite(n) ? n : null; }
+export function entryFeeOf(b) { const n = Number(b?.entryFeeUsd ?? 0); return Number.isFinite(n) ? n : 0; }
+export const exactAmount = value => {
+  if (value == null || value === '') return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+};
+export function groupRewards(rewards) {
+  const rows = array(rewards).map(r => ({
+    place: text(r?.place),
+    base: exactAmount(r?.baseUsd),
+    feeShare: exactAmount(r?.feeShareUsd ?? 0),
+    amount: exactAmount(r?.amountUsd),
+    raw: r || {}
+  })).filter(r => r.amount !== null || r.base !== null);
+  const groups = [];
+  let current = null;
+  for (const row of rows) {
+    const key = `${row.base}|${row.feeShare}|${row.amount}`;
+    if (!current || current.key !== key) {
+      current = {key, base: row.base, feeShare: row.feeShare, amount: row.amount, raw: row.raw, places: []};
+      groups.push(current);
+    }
+    current.places.push(row.place);
+  }
+  return groups.map(g => ({...g, first: g.places[0], last: g.places[g.places.length-1], count: g.places.length}));
+}
+export function topFive(rows, limit = 5) {
+  return [...array(rows)].sort((a,b)=>Number(a?.rank ?? Infinity)-Number(b?.rank ?? Infinity)).slice(0, limit);
+}
+export function mergeBoard(board, bounty, stamp = Date.now()) {
+  const list = array(board), slug = text(bounty?.slug);
+  if (!segment(slug)) return list;
+  const index = list.findIndex(b => b.slug === slug);
+  const stampValue = Number.isFinite(Number(stamp)) ? Number(stamp) : Date.now();
+  const previous = index >= 0 ? list[index] : null;
+  const merged = {...(previous || {}), ...bounty, slug, _updatedAt: stampValue};
+  if (index < 0) return [...list, merged];
+  const next = list.slice();
+  next[index] = merged;
+  return next;
+}
+
+export function filterBoard(board, params, saved = new Set()) {
+  const get = key => (params?.get ? params.get(key) : '') || '';
+  const q = get('q').toLowerCase();
+  const category = get('category'), fee = get('fee'), deadline = get('deadline');
+  const sort = get('sort') || 'deadline', dir = get('dir');
+  const now = Date.now();
+  let items = array(board).filter(b => segment(b?.slug));
+  items = items.filter(b =>
+    (!q || [b.title, b.summary, b.category, ...(Array.isArray(b.skills) ? b.skills : [])].join(' ').toLowerCase().includes(q)) &&
+    (!category || b.category === category) &&
+    (!get('saved') || saved.has(b.slug)) &&
+    (!fee || (fee === 'free' ? !(entryFeeOf(b) > 0) : entryFeeOf(b) > 0)) &&
+    (!deadline || (deadline === 'open' ? accepting(b, now) : accepting(b, now) && Date.parse(b.deadline) - now <= 86400000)));
+  const compare = sort === 'pot'
+    ? (a, b) => (potOf(b) ?? -Infinity) - (potOf(a) ?? -Infinity)
+    : sort === 'entries'
+      ? (a, b) => (Number(b.submissionCount) || 0) - (Number(a.submissionCount) || 0)
+      : sort === 'newest'
+        ? (a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt)
+        : (a, b) => (Number(!accepting(a, now)) - Number(!accepting(b, now)) || Date.parse(a.deadline) - Date.parse(b.deadline));
+  items.sort(compare);
+  if (dir === 'desc') items.reverse();
+  else if (dir === 'asc' && (sort === 'pot' || sort === 'entries' || sort === 'newest')) items.reverse();
+  return items;
+}
+
+export function slicePage(items, page, size = 8) {
+  const list = array(items);
+  const n = Math.max(1, Math.min(Math.ceil(list.length / size) || 1, Number(page) || 1));
+  return list.slice((n - 1) * size, n * size);
+}
+
